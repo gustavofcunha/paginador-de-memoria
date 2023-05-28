@@ -73,11 +73,12 @@ void pager_init(int nquadros, int nblocos){
 
 void pager_create(pid_t pid){
     int i, j, qtdPaginas;
-    // Calcula o número de páginas dos vetores quadros e blocos.
+
+    // Calcula o número de páginas dos vetores frames e blocks.
     qtdPaginas = (UVM_MAXADDR - UVM_BASEADDR + 1) / sysconf(_SC_PAGESIZE);
 
     // Procurando tabela vazia na lista de tabelas.
-    for (i = 0; i < tamanhoListaDeTabelas; i++){
+    for(i = 0; i < tamanhoListaDeTabelas; i++){
         // Se a tabela estiver vazia.
         if (listaDeTabelas[i].tabela == NULL){
             listaDeTabelas[i].pid = pid;
@@ -87,12 +88,33 @@ void pager_create(pid_t pid){
             listaDeTabelas[i].tabela->blocos = malloc(qtdPaginas* sizeof(int));
 
             // Seta os valores para -1 (convenção de vazio).
-            for (j = 0; j < qtdPaginas; j++){
+            for(j = 0; j < qtdPaginas; j++){
                 listaDeTabelas[i].tabela->quadros[j] = -1;
                 listaDeTabelas[i].tabela->blocos[j] = -1;
             }
 
-            break;
+            return;
         }
+    }
+
+    // Aumenta o tamanho da lista de tabelas.
+    tamanhoListaDeTabelas += 100;
+    listaDeTabelas = realloc(listaDeTabelas, tamanhoListaDeTabelas * sizeof(listaDeTabelas));
+
+    // Aloca o novo processo na primeira posição vazia.
+    listaDeTabelas[tamanhoListaDeTabelas - 100].pid = pid;
+    listaDeTabelas[tamanhoListaDeTabelas - 100].tabela = malloc(sizeof(listaDeTabelas));
+    listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->qtdPaginas = qtdPaginas;
+    listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->quadros = malloc(qtdPaginas* sizeof(int));
+    listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->blocos = malloc(qtdPaginas* sizeof(int));
+
+	for (j = 0; j < qtdPaginas; j++){
+        listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->quadros[j] = -1;
+        listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->blocos[j] = -1;
+    }
+
+    // Define as tabelas subsequentes como vazias.
+    for (j = tamanhoListaDeTabelas - 99; j < tamanhoListaDeTabelas; j++){
+        listaDeTabelas[j].tabela = NULL;
     }
 }
