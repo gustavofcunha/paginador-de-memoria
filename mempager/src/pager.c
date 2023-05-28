@@ -1,6 +1,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include "pager.h"
 #include "uvm.h"
@@ -70,8 +71,7 @@ void pager_init(int nquadros, int nblocos){
 //-gu
 
 
-void pager_create(pid_t pid)
-{
+void pager_create(pid_t pid){
     int i, j, qtdPaginas;
     // Calcula o número de páginas dos vetores quadros e blocos.
     qtdPaginas = (UVM_MAXADDR - UVM_BASEADDR + 1) / sysconf(_SC_PAGESIZE);
