@@ -3,6 +3,7 @@
 #include "pager.h"
 #include "uvm.h"
 #include "mmu.h"
+#include "mmuproto.h"
 #include "cyc.h"
 #include "log.h"
 
@@ -38,6 +39,7 @@ int tamanhoVetorBlocos;
 ListaDeTabelas *listaDeTabelas;
 int tamanhoListaDeTabelas;
 
+//gu-
 //inicializacao do paginador
 void pager_init(int nframes, int nblocks){
     int i;
@@ -62,4 +64,15 @@ void pager_init(int nframes, int nblocks){
     //inicializacao da lista de tabela de paginas
     tamanhoListaDeTabelas = 1;
     listaDeTabelas = (ListaDeTabelas*) malloc (tamanhoListaDeTabelas * sizeof(ListaDeTabelas));
+}
+//-gu
+
+void pager_create(pid_t pid){
+    int i, j, numeroDePaginas, aux = 0;
+	// Calcula o número de páginas dos vetores frames e blocks.
+	numeroDePaginas = (UVM_MAXADDR - UVM_BASEADDR + 1) / sysconf(_SC_PAGESIZE);
+
+
+
+
 }
