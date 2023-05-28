@@ -13,6 +13,7 @@ typedef struct Quadro{
     bool disponivel; //true se disponivel, false caso contrario
 }Quadro;
 
+//estrutura de dados que representa uma tabela de paginas de um processo
 typedef struct TabelaDePaginas{
 	int qtdPaginas; // Usado como tamanho dos dois vetores quadros e blocos.
 	int *quadros; 
@@ -28,7 +29,7 @@ typedef struct ListaDeTabelas{
 Quadro *quadros;
 int numeroQuadros;
 
-//vetor de blocos
+//vetor de blocos do disco
 int *vetorDeBlocos;
 int qtdBlocosLivres; // informa quantos blocos ainda estão livres.
 int tamanhoVetorBlocos;
