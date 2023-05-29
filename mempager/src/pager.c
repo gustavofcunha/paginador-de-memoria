@@ -19,7 +19,7 @@ typedef struct Quadro {
 
 //estrutura de dados que representa uma tabela de paginas de um processo
 typedef struct TabelaDePaginas {
-	int qtdPaginas; // Usado como tamanho dos dois vetores quadros e blocos.
+	int qtdPaginasBlocos; // Usado como tamanho dos dois vetores quadros e blocos.
 	int *quadros;
 	int *blocos;
 } TabelaDePaginas;
@@ -61,7 +61,7 @@ void pager_init(int nquadros, int nblocos){
     qtdBlocosLivres = nblocos;
     vetorDeBlocos = (int*) malloc(nblocos* sizeof(int));
     for(i = 0; i < nblocos; i++){
-		vetorDeBlocos[i] = 0; //setando todas os blocos como vazios
+		vetorDeBlocos[i] = 0; //setando todas os blocos como vazios (0 como conveção)
     }
 
     //inicializacao da lista de tabela de paginas
@@ -70,7 +70,7 @@ void pager_init(int nquadros, int nblocos){
 }
 //-gu
 
-
+//ga-
 void pager_create(pid_t pid){
     int i, j, qtdPaginas;
 
@@ -83,7 +83,7 @@ void pager_create(pid_t pid){
         if (listaDeTabelas[i].tabela == NULL){
             listaDeTabelas[i].pid = pid;
             listaDeTabelas[i].tabela = malloc(sizeof(TabelaDePaginas));
-            listaDeTabelas[i].tabela->qtdPaginas = qtdPaginas;
+            listaDeTabelas[i].tabela->qtdPaginasBlocos = qtdPaginas;
             listaDeTabelas[i].tabela->quadros = malloc(qtdPaginas* sizeof(int));
             listaDeTabelas[i].tabela->blocos = malloc(qtdPaginas* sizeof(int));
 
@@ -104,7 +104,7 @@ void pager_create(pid_t pid){
     // Aloca o novo processo na primeira posição vazia.
     listaDeTabelas[tamanhoListaDeTabelas - 100].pid = pid;
     listaDeTabelas[tamanhoListaDeTabelas - 100].tabela = malloc(sizeof(listaDeTabelas));
-    listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->qtdPaginas = qtdPaginas;
+    listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->qtdPaginasBlocos = qtdPaginas;
     listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->quadros = malloc(qtdPaginas* sizeof(int));
     listaDeTabelas[tamanhoListaDeTabelas - 100].tabela->blocos = malloc(qtdPaginas* sizeof(int));
 
@@ -118,3 +118,57 @@ void pager_create(pid_t pid){
         listaDeTabelas[j].tabela = NULL;
     }
 }
+//-ga
+
+//gu-
+//aloca um quadro de memoria a um processo
+void *pager_extend(pid_t pid){
+    //se nao houverem mais blocos disponiveis, retorna NULL
+    if(qtdBlocosLivres == 0){
+        return NULL;
+    }
+
+    int i, j, posicaoBlocoAlocado;
+    TabelaDePaginas *tabelaProcesso;
+
+    //alocacao do bloco do disco
+    for(i=0; i<tamanhoVetorBlocos; i++){
+        if(vetorDeBlocos[i] == 0){
+            vetorDeBlocos[i] = 1; //seta bloco para em uso
+            qtdBlocosLivres--;
+            posicaoBlocoAlocado = i;
+
+            break;
+        }
+    }
+
+    //busca tabela de paginas do processo
+    for(i=0; i<tamanhoListaDeTabelas; i++){
+        
+        //tabela localizada
+        if(listaDeTabelas[i].pid == pid){
+            tabelaProcesso = listaDeTabelas[i].tabela;
+
+            //busca bloco livre na tabela do processo
+            for(j=0; j<tabelaProcesso->qtdPaginasBlocos; j++){
+
+                //encontrou bloco livre na tabela do processo
+                if(tabelaProcesso->blocos[j] == -1){
+
+                    //referencia ao bloco alocado
+                    tabelaProcesso->blocos[j] = posicaoBlocoAlocado;
+
+                    break;
+                }
+
+                // se nao ha blocos livres na tabela do processo, retorna NULL
+				if(j == (tabelaProcesso->qtdPaginasBlocos) - 1){
+					return NULL;
+                }
+            }
+            break;
+        }
+    }
+
+}
+//-gu
