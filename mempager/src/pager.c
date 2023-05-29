@@ -170,5 +170,8 @@ void *pager_extend(pid_t pid){
         }
     }
 
+    //retorna o endereço (inicio + posicao * tamanho da pagina)
+	return (void*) (UVM_BASEADDR + (intptr_t) (j * sysconf(_SC_PAGESIZE)));
+
 }
 //-gu
