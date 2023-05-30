@@ -137,7 +137,7 @@ void *pager_extend(pid_t pid){
     TabelaDePaginas *tabelaProcesso;
 
     //alocacao do bloco do disco
-    for(i = 0 ; i < numeroBlocos; i++){
+    for(i=0 ; i < numeroBlocos; i++){
         if(blocos[i] == 0){
             blocos[i] = 1; //seta bloco para em uso
             qtdBlocosLivres--;
@@ -148,12 +148,12 @@ void *pager_extend(pid_t pid){
     }
 
     //busca tabela de paginas do processo
-    for(i = 0; i < tamanhoListaDeTabelas; i++){
+    for(i=0; i < tamanhoListaDeTabelas; i++){
         //tabela localizada
         if(listaDeTabelas[i].pid == pid){
             tabelaProcesso = listaDeTabelas[i].tabela;
             //busca bloco livre na tabela do processo
-            for(j = 0; j<tabelaProcesso->qtdPaginasBlocos; j++){
+            for(j=0; j<tabelaProcesso->qtdPaginasBlocos; j++){
                 //encontrou bloco livre na tabela do processo
                 if(tabelaProcesso->blocos[j] == -1){
                     //referencia ao bloco alocado
@@ -303,7 +303,7 @@ int pager_syslog(pid_t pid, void *addr, size_t len){
     char *mensagem = (char*) malloc (len + 1);
 
     //busca tabela de paginas do processo
-    for(i = 0; i < tamanhoListaDeTabelas; i++){
+    for(i=0; i < tamanhoListaDeTabelas; i++){
         //tabela localizada
         if(listaDeTabelas[i].pid == pid){
             tabelaProcesso = listaDeTabelas[i].tabela;
@@ -359,5 +359,29 @@ int pager_syslog(pid_t pid, void *addr, size_t len){
 
     //acesso e impressao realizados com sucesso
     return 0;
+}
+//-gu
+
+//gu-
+//atualiza informacoes dentro do paginador para que ele reutilize quadros que estavam alocados para o processo
+void pager_destroy(pid_t pid){
+    int i;
+    TabelaDePaginas *tabelaProcesso;
+
+    //busca tabela de paginas do processo
+    for(i=0; i < tamanhoListaDeTabelas; i++){
+        //tabela localizada
+        if(listaDeTabelas[i].pid == pid){
+            tabelaProcesso = listaDeTabelas[i].tabela;
+            listaDeTabelas[i].pid = 0;
+
+           free(tabelaProcesso->blocos);
+           free(tabelaProcesso->quadros);
+           free(tabelaProcesso);
+           tabelaProcesso = NULL;
+
+           qtdBlocosLivres++;
+        }
+    }
 }
 //-gu
