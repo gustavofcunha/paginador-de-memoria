@@ -15,14 +15,14 @@ typedef struct Quadro {
     pid_t pid; //id do processo que utiliza o quadro
     int numPagina;
     bool disponivel; //true se disponivel, false caso contrario
-    short bitReferencia; // Usado no algoritmo de segunda chance (0 - substitui, 1 - 2ª chance)
+    short bitReferencia; //usado no algoritmo de segunda chance (0 - substitui, 1 - 2a chance)
     short none;
     short escrito;
 } Quadro;
 
 //estrutura de dados que representa uma tabela de paginas de um processo
 typedef struct TabelaDePaginas {
-	int qtdPaginasBlocos; // Usado como tamanho dos dois vetores quadros e blocos.
+	int qtdPaginasBlocos; //usado como tamanho dos dois vetores quadros e blocos
 	int *quadros;
 	int *blocos;
 } TabelaDePaginas;
@@ -40,7 +40,7 @@ int numeroQuadros;
 
 //vetor de blocos do disco
 int *blocos;
-int qtdBlocosLivres; // informa quantos blocos ainda estão livres.
+int qtdBlocosLivres; //informa quantos blocos ainda estão livres
 int numeroBlocos;
 
 //vetor de tabelas
@@ -178,8 +178,10 @@ void *pager_extend(pid_t pid){
 //-gu
 
 //ga-
+//vaddr eh o endereco virtual que o processo pid tentou acessar e ele nao estava na memoria
 void pager_fault(pid_t pid, void *vaddr){
-    int i, index, index2, numPagina, quadroAtual, novoQuadro, blocoAtual, novoProcesso, moveDiscoViaPid, moveDiscoViaPnum, memNoNone;
+    int i, index, index2, numPagina, quadroAtual, novoQuadro;
+    int blocoAtual, novoProcesso, moveDiscoViaPid, moveDiscoViaPnum, memNoNone;
     void *addr;
 
     // Procura o índice da tabela de página do processo pid na lista de tabelas.
@@ -214,7 +216,9 @@ void pager_fault(pid_t pid, void *vaddr){
         quadros[quadroAtual].bitReferencia = 1;
         // Marca que houve escrita.
         quadros[quadroAtual].escrito = 1;
-    } else { // Se não está carregado:
+    } 
+    
+    else { // Se não está carregado:
         if(memNoNone){
             for(i = 0; i < numeroQuadros; i++){
                 addr = (void*)(UVM_BASEADDR + (intptr_t)(quadros[i].numPagina* sysconf(_SC_PAGESIZE)));
@@ -267,14 +271,18 @@ void pager_fault(pid_t pid, void *vaddr){
                     novoProcesso = listaDeTabelas[index].tabela->blocos[numPagina];
                     mmu_disk_read(novoProcesso, novoQuadro);
                     quadros[clockPtr].escrito = 1;
-                } else {
+                } 
+                
+                else {
                     mmu_zero_fill(novoQuadro);
                     quadros[clockPtr].escrito = 0;
                 }
 
                 listaDeTabelas[index].tabela->quadros[numPagina] = novoQuadro;
                 mmu_resident(pid, vaddr, novoQuadro, PROT_READ /*| PROT_WRITE*/);
-            } else {
+            } 
+            
+            else {
                 quadros[clockPtr].bitReferencia = 0;
             }
 
@@ -284,3 +292,72 @@ void pager_fault(pid_t pid, void *vaddr){
     }
 }
 //-ga
+
+//gu-
+//copia len bytes comecando do endereco addr para um buffer temporario em formato hexadecimal
+int pager_syslog(pid_t pid, void *addr, size_t len){
+    int i, j;
+    int quadroLimiteProcesso; //primeiro quadro livre do processo, limite para leitura
+    TabelaDePaginas *tabelaProcesso;
+    bool permissaoAcessoQuadro;
+    char *mensagem = (char*) malloc (len + 1);
+
+    //busca tabela de paginas do processo
+    for(i = 0; i < tamanhoListaDeTabelas; i++){
+        //tabela localizada
+        if(listaDeTabelas[i].pid == pid){
+            tabelaProcesso = listaDeTabelas[i].tabela;
+            break;
+        }
+    }
+    
+    //inicialmente considera que o processo utiliza todos os quadros solicitados
+    quadroLimiteProcesso = tabelaProcesso->qtdPaginasBlocos - 1;
+
+    //busca primeiro frame vazio na tabela de paginas do processo
+    for(i=0; i<tabelaProcesso->qtdPaginasBlocos; i++){
+        //quadro vazio localizado
+        if(tabelaProcesso->quadros[i] == -1){
+            quadroLimiteProcesso = i;
+            break;
+        }
+    }
+
+    //verifica se o processo tem permissao de acessar o quadro
+    for(i=0; i<len; i++){
+        
+        permissaoAcessoQuadro = false;
+        for(j=0; j<quadroLimiteProcesso; j++){
+            //se esta acessando um quadro permitido ao processo pid
+			if(((intptr_t) addr + i - UVM_BASEADDR) / (sysconf(_SC_PAGESIZE)) == tabelaProcesso->quadros[j]){
+                permissaoAcessoQuadro = true;
+                break;
+            }
+        }
+
+        //se o processo nao tem permissao, retorna -1
+        if(!permissaoAcessoQuadro){
+            return -1;
+        }
+
+        //impressao dos bytes---------------------------------------------------------------------
+
+        //soma o índice i, arredonda (fazendo o AND, para retirar os 1's menos significativos)
+		//subtrai a primeira posição e divide pelo tamanho do frame
+		//isso é usado para conseguir o índice do frame que deve ser lido
+		int pag = ((((intptr_t) addr + i)) - UVM_BASEADDR) / (sysconf(_SC_PAGESIZE));
+
+		//pega o indice do dado no vetor de quadros
+		int indiceQuadro = tabelaProcesso->quadros[pag];
+
+		mensagem[i] = pmem[(indiceQuadro * sysconf(_SC_PAGESIZE)) + i];
+		printf("%02x", (unsigned)mensagem[i]);
+		if(i == len-1){
+			printf("\n");
+        }
+    }
+
+    //acesso e impressao realizados com sucesso
+    return 0;
+}
+//-gu
