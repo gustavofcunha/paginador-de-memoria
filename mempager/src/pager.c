@@ -373,6 +373,8 @@ void pager_destroy(pid_t pid){
         //tabela localizada
         if(listaDeTabelas[i].pid == pid){
             tabelaProcesso = listaDeTabelas[i].tabela;
+
+            //libera a tabela, e seus blocos e quadros
             listaDeTabelas[i].pid = 0;
 
            free(tabelaProcesso->blocos);
