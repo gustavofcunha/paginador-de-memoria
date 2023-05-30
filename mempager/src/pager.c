@@ -15,6 +15,9 @@ typedef struct Quadro {
     pid_t pid; //id do processo que utiliza o quadro
     int numPagina;
     bool disponivel; //true se disponivel, false caso contrario
+    short bitReferencia; // Usado no algoritmo de segunda chance (0 - substitui, 1 - 2ª chance)
+    short none;
+    short escrito;
 } Quadro;
 
 //estrutura de dados que representa uma tabela de paginas de um processo
@@ -29,14 +32,16 @@ typedef struct ListaDeTabelas {
 	TabelaDePaginas *tabela;
 } ListaDeTabelas;
 
+int clockPtr;
+
 //vetor de quadros da memoria fisica
 Quadro *quadros;
 int numeroQuadros;
 
 //vetor de blocos do disco
-int *vetorDeBlocos;
+int *blocos;
 int qtdBlocosLivres; // informa quantos blocos ainda estão livres.
-int tamanhoVetorBlocos;
+int numeroBlocos;
 
 //vetor de tabelas
 ListaDeTabelas *listaDeTabelas;
@@ -57,11 +62,11 @@ void pager_init(int nquadros, int nblocos){
     }
 
     //inicializacao do vetor de blocos
-    tamanhoVetorBlocos = nblocos;
+    numeroBlocos = nblocos;
     qtdBlocosLivres = nblocos;
-    vetorDeBlocos = (int*) malloc(nblocos* sizeof(int));
+    blocos = (int*) malloc(nblocos* sizeof(int));
     for(i = 0; i < nblocos; i++){
-		vetorDeBlocos[i] = 0; //setando todas os blocos como vazios (0 como conveção)
+		blocos[i] = 0; //setando todas os blocos como vazios (0 como conveção)
     }
 
     //inicializacao da lista de tabela de paginas
@@ -74,7 +79,7 @@ void pager_init(int nquadros, int nblocos){
 void pager_create(pid_t pid){
     int i, j, qtdPaginas;
 
-    // Calcula o número de páginas dos vetores frames e blocks.
+    // Calcula o número de páginas dos vetores quadros e blocks.
     qtdPaginas = (UVM_MAXADDR - UVM_BASEADDR + 1) / sysconf(_SC_PAGESIZE);
 
     // Procurando tabela vazia na lista de tabelas.
@@ -132,9 +137,9 @@ void *pager_extend(pid_t pid){
     TabelaDePaginas *tabelaProcesso;
 
     //alocacao do bloco do disco
-    for(i=0; i<tamanhoVetorBlocos; i++){
-        if(vetorDeBlocos[i] == 0){
-            vetorDeBlocos[i] = 1; //seta bloco para em uso
+    for(i = 0 ; i < numeroBlocos; i++){
+        if(blocos[i] == 0){
+            blocos[i] = 1; //seta bloco para em uso
             qtdBlocosLivres--;
             posicaoBlocoAlocado = i;
 
@@ -143,18 +148,14 @@ void *pager_extend(pid_t pid){
     }
 
     //busca tabela de paginas do processo
-    for(i=0; i<tamanhoListaDeTabelas; i++){
-        
+    for(i = 0; i < tamanhoListaDeTabelas; i++){
         //tabela localizada
         if(listaDeTabelas[i].pid == pid){
             tabelaProcesso = listaDeTabelas[i].tabela;
-
             //busca bloco livre na tabela do processo
-            for(j=0; j<tabelaProcesso->qtdPaginasBlocos; j++){
-
+            for(j = 0; j<tabelaProcesso->qtdPaginasBlocos; j++){
                 //encontrou bloco livre na tabela do processo
                 if(tabelaProcesso->blocos[j] == -1){
-
                     //referencia ao bloco alocado
                     tabelaProcesso->blocos[j] = posicaoBlocoAlocado;
 
@@ -166,12 +167,120 @@ void *pager_extend(pid_t pid){
 					return NULL;
                 }
             }
+
             break;
         }
     }
 
     //retorna o endereço (inicio + posicao * tamanho da pagina)
-	return (void*) (UVM_BASEADDR + (intptr_t) (j * sysconf(_SC_PAGESIZE)));
-
+    return (void*)(UVM_BASEADDR + (intptr_t)(j* sysconf(_SC_PAGESIZE)));
 }
 //-gu
+
+//ga-
+void pager_fault(pid_t pid, void *vaddr){
+    int i, index, index2, numPagina, quadroAtual, novoQuadro, blocoAtual, novoProcesso, moveDiscoViaPid, moveDiscoViaPnum, memNoNone;
+    void *addr;
+
+    // Procura o índice da tabela de página do processo pid na lista de tabelas.
+    for(i = 0; i < tamanhoListaDeTabelas; i++){
+        if(listaDeTabelas[i].pid == pid){
+            // Salva o índice e sai.
+            index = i;
+
+            break;
+        }
+    }
+
+    // Pega o número do quadro na tabela do processo.
+    numPagina = ((((intptr_t)vaddr) - UVM_BASEADDR) / (sysconf(_SC_PAGESIZE)));
+
+    memNoNone = 1;
+    for(i = 0; i < numeroQuadros; i++){
+        if(quadros[i].none == 1){
+            memNoNone = 0;
+
+            break;
+        }
+    }
+
+    // Se esse quadro está carregado.
+    if(listaDeTabelas[index].tabela->quadros[numPagina] != -1 && listaDeTabelas[index].tabela->quadros[numPagina] != -2){
+        // Salva o índice do vetor de quadros (memória).
+        quadroAtual = listaDeTabelas[index].tabela->quadros[numPagina];
+        // Dá permissão de escrita para o processo pid.
+        mmu_chprot(pid, vaddr, PROT_READ | PROT_WRITE);
+        // Marca o bit de referência no vetor de quadros (memória).
+        quadros[quadroAtual].bitReferencia = 1;
+        // Marca que houve escrita.
+        quadros[quadroAtual].escrito = 1;
+    } else { // Se não está carregado:
+        if(memNoNone){
+            for(i = 0; i < numeroQuadros; i++){
+                addr = (void*)(UVM_BASEADDR + (intptr_t)(quadros[i].numPagina* sysconf(_SC_PAGESIZE)));
+                mmu_chprot(quadros[i].pid, addr, PROT_NONE);
+                quadros[i].none = 1;
+            }
+        }
+
+        novoQuadro = -1;
+        while(novoQuadro == -1){
+            novoQuadro = -1;
+
+            // Se o bit de referência é zero.
+            if(quadros[clockPtr].bitReferencia == 0){
+                novoQuadro = clockPtr;
+
+                // Se o frame está em uso.
+                if(quadros[clockPtr].disponivel == 1){
+                    // Remove o frame e Salva o frame no disco se tiver permissão de escrita.
+                    moveDiscoViaPid = quadros[clockPtr].pid;
+                    moveDiscoViaPnum = quadros[clockPtr].numPagina;
+
+                    for(i = 0; i < tamanhoListaDeTabelas; i++){
+                        if(listaDeTabelas[i].pid == moveDiscoViaPid){
+                            index2 = i;
+                        }
+                    }
+
+                    blocoAtual = listaDeTabelas[index2].tabela->blocos[moveDiscoViaPnum];
+                    mmu_nonresident(pid, (void*)(UVM_BASEADDR + (intptr_t)(moveDiscoViaPnum* sysconf(_SC_PAGESIZE))));
+
+                    if(quadros[clockPtr].escrito == 1){
+                        mmu_disk_write(clockPtr, blocoAtual);
+                        // Marca o frame como vazio (sem uso) que está no disco.
+                        listaDeTabelas[index2].tabela->quadros[moveDiscoViaPnum] = -2;
+                    } else {
+                        // Marca o frame como vazio (sem uso).
+                        listaDeTabelas[index2].tabela->quadros[moveDiscoViaPnum] = -1;
+                    }
+                }
+
+                // Coloca o novo processo no vetor de quadros.
+                quadros[clockPtr].pid = pid;
+                quadros[clockPtr].numPagina = numPagina;
+                quadros[clockPtr].disponivel = 1;
+                quadros[clockPtr].bitReferencia = 1;
+                quadros[clockPtr].none = 0;
+
+                if(listaDeTabelas[index].tabela->quadros[numPagina] == -2){
+                    novoProcesso = listaDeTabelas[index].tabela->blocos[numPagina];
+                    mmu_disk_read(novoProcesso, novoQuadro);
+                    quadros[clockPtr].escrito = 1;
+                } else {
+                    mmu_zero_fill(novoQuadro);
+                    quadros[clockPtr].escrito = 0;
+                }
+
+                listaDeTabelas[index].tabela->quadros[numPagina] = novoQuadro;
+                mmu_resident(pid, vaddr, novoQuadro, PROT_READ /*| PROT_WRITE*/);
+            } else {
+                quadros[clockPtr].bitReferencia = 0;
+            }
+
+            clockPtr++;
+            clockPtr %= numeroQuadros;
+        }
+    }
+}
+//-ga
