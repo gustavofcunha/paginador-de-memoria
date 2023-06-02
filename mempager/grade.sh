@@ -1,6 +1,8 @@
 #!/bin/bash
 set -u
 
+TESTSPEC=mempager-tests/tests.spec
+
 make
 
 while read -r num frames blocks nodiff ; do
@@ -9,6 +11,7 @@ while read -r num frames blocks nodiff ; do
     blocks=$((blocks))
     nodiff=$((nodiff))
     echo "running test$num"
+    rm -rf mmu.sock mmu.pmem.img.*
     ./bin/mmu $frames $blocks &> test$num.mmu.out &
     sleep 1s
     ./bin/test$num &> test$num.out
@@ -24,4 +27,4 @@ while read -r num frames blocks nodiff ; do
     if ! diff mempager-tests/test$num.out test$num.out > /dev/null ; then
         echo "test$num.out differs"
     fi
-done < mempager-tests/tests.spec
+done < $TESTSPEC

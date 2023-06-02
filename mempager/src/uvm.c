@@ -57,6 +57,11 @@ static void uvm_proto_segv_rep(void);
 static void uvm_proto_remap_rep(void);
 static void uvm_proto_chprot_rep(void);
 
+/* Helper functions */
+static void uvm_connect_socket(int sock, const struct sockaddr_un * addr);
+
+#define NUM_CONNECTION_TRIES 3
+
 #define prexit() do { loge(LOG_FATAL, __FILE__, __LINE__); \
 			char buf[80]; sprintf(buf, "%s:%d: ", __FILE__, __LINE__); \
 			perror(buf); exit(EXIT_FAILURE); } while(0)
@@ -84,8 +89,8 @@ void uvm_create(void)/*{{{*/
 	addr.sun_family = AF_UNIX;
 	addr.sun_path[0] = '\0';
 	strncat(addr.sun_path, MMU_PROTO_UNIX_PATH, MMU_PROTO_PATH_MAX-1);
-	if(connect(uvm->sock, (struct sockaddr *)&addr, sizeof(addr)) == -1)
-		prexit();
+
+	uvm_connect_socket(uvm->sock, &addr);
 
 	logd(LOG_DEBUG, "  sending CREATE_REQ [%d]\n", (int)getpid());
 	struct mmu_proto_create_req req;
@@ -339,3 +344,25 @@ void uvm_proto_chprot_rep(void)/*{{{*/
 	req.type = MMU_PROTO_CHPROT_REQ;
 	if(send(uvm->sock, &req, sizeof(req), 0) != sizeof(req)) prexit();
 }/*}}}*/
+
+/****************************************************************************
+ * external functions
+ ***************************************************************************/
+void uvm_connect_socket(int sock, const struct sockaddr_un * addr) {
+	int try = 0;
+	do {
+		sleep(try);
+		if(connect(uvm->sock, (struct sockaddr *)addr, sizeof(*addr)) == 0) {
+			return;
+		}
+		loge(LOG_ERROR, __FILE__, __LINE__);
+		logd(LOG_FATAL, "%s connection attempt %d/%d failed\n",
+				MMU_PROTO_UNIX_PATH,
+				try,
+				NUM_CONNECTION_TRIES);
+		try += 1;
+	} while(try < NUM_CONNECTION_TRIES);
+	if(connect(uvm->sock, (struct sockaddr *)addr, sizeof(*addr)) == -1) {
+		prexit();
+	}
+}

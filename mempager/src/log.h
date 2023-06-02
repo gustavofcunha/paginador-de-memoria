@@ -16,6 +16,7 @@
 #include <inttypes.h>
 
 #define LOG_FATAL 10
+#define LOG_ERROR 25
 #define LOG_WARN 50
 #define LOG_INFO 100
 #define LOG_DEBUG 500
