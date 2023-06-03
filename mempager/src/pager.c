@@ -105,7 +105,7 @@ void pager_create(pid_t pid){
         }
     }
 
-    // Aumenta o tamanho da lista de tabelas.
+    //aumenta o tamanho da lista de tabelas - caso nao haja tabela vazia
     tamanhoListaDeTabelas += 100;
     listaDeTabelas = realloc(listaDeTabelas, tamanhoListaDeTabelas * sizeof(listaDeTabelas));
 
@@ -140,7 +140,7 @@ void *pager_extend(pid_t pid){
     TabelaDePaginas *tabelaProcesso;
 
     //alocacao do bloco do disco
-    for(i=0 ; i < numeroBlocos; i++){
+    for(i=0 ; i<numeroBlocos; i++){
         if(blocos[i] == 0){
             blocos[i] = 1; //seta bloco para em uso
             qtdBlocosLivres--;
@@ -183,15 +183,16 @@ void *pager_extend(pid_t pid){
 //ga-
 //vaddr eh o endereco virtual que o processo pid tentou acessar e ele nao estava na memoria
 void pager_fault(pid_t pid, void *vaddr){
-    int i, index, index2, numPagina, quadroAtual, novoQuadro;
+    int i, index2, numPagina, quadroAtual, novoQuadro;
     int blocoAtual, novoProcesso, moveDiscoViaPid, moveDiscoViaPnum, memNoNone;
     void *addr;
+    TabelaDePaginas *tabelaProcesso;
 
     // Procura o índice da tabela de página do processo pid na lista de tabelas.
     for(i = 0; i < tamanhoListaDeTabelas; i++){
         if(listaDeTabelas[i].pid == pid){
             // Salva o índice e sai.
-            index = i;
+            tabelaProcesso = listaDeTabelas[i].tabela;
 
             break;
         }
@@ -210,9 +211,9 @@ void pager_fault(pid_t pid, void *vaddr){
     }
 
     // Se esse quadro está carregado.
-    if(listaDeTabelas[index].tabela->quadros[numPagina] != -1 && listaDeTabelas[index].tabela->quadros[numPagina] != -2){
+    if(tabelaProcesso->quadros[numPagina] != -1 && tabelaProcesso->quadros[numPagina] != -2){
         // Salva o índice do vetor de quadros (memória).
-        quadroAtual = listaDeTabelas[index].tabela->quadros[numPagina];
+        quadroAtual = tabelaProcesso->quadros[numPagina];
         // Dá permissão de escrita para o processo pid.
         mmu_chprot(pid, vaddr, PROT_READ | PROT_WRITE);
         // Marca o bit de referência no vetor de quadros (memória).
@@ -221,7 +222,7 @@ void pager_fault(pid_t pid, void *vaddr){
         quadros[quadroAtual].escrito = 1;
     } 
     
-    else { // Se não está carregado:
+    else{ // Se não está carregado:
         if(memNoNone){
             for(i = 0; i < numeroQuadros; i++){
                 addr = (void*)(UVM_BASEADDR + (intptr_t)(quadros[i].numPagina* sysconf(_SC_PAGESIZE)));
@@ -270,8 +271,8 @@ void pager_fault(pid_t pid, void *vaddr){
                 quadros[clockPtr].bitReferencia = 1;
                 quadros[clockPtr].none = 0;
 
-                if(listaDeTabelas[index].tabela->quadros[numPagina] == -2){
-                    novoProcesso = listaDeTabelas[index].tabela->blocos[numPagina];
+                if(tabelaProcesso->quadros[numPagina] == -2){
+                    novoProcesso = tabelaProcesso->blocos[numPagina];
                     mmu_disk_read(novoProcesso, novoQuadro);
                     quadros[clockPtr].escrito = 1;
                 } 
@@ -281,7 +282,7 @@ void pager_fault(pid_t pid, void *vaddr){
                     quadros[clockPtr].escrito = 0;
                 }
 
-                listaDeTabelas[index].tabela->quadros[numPagina] = novoQuadro;
+                tabelaProcesso->quadros[numPagina] = novoQuadro;
                 mmu_resident(pid, vaddr, novoQuadro, PROT_READ /*| PROT_WRITE*/);
             } 
             
@@ -314,8 +315,8 @@ int pager_syslog(pid_t pid, void *addr, size_t len){
         }
     }
     
-    //inicialmente considera que o processo utiliza todos os quadros solicitados
-    quadroLimiteProcesso = tabelaProcesso->qtdPaginasBlocos - 1;
+    //inicialmente considera que o processo nao utiliza nenhum dos quadros solicitados
+    quadroLimiteProcesso = 0;
 
     //busca primeiro frame vazio na tabela de paginas do processo
     for(i=0; i<tabelaProcesso->qtdPaginasBlocos; i++){
