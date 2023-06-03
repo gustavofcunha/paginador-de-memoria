@@ -59,6 +59,9 @@ void pager_init(int nquadros, int nblocos){
         quadros[i].disponivel = true;
         quadros[i].numPagina = 0;
         quadros[i].pid = -1;
+        quadros[i].bitReferencia = 0;
+		quadros[i].none = 1;
+		quadros[i].escrito = 0;
     }
 
     //inicializacao do vetor de blocos

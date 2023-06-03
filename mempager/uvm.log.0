@@ -1,3 +1,0 @@
-uvm_create starting
-  connecting unix socket [mmu.sock]
-src/uvm.c:88: strerror: No such file or directory
