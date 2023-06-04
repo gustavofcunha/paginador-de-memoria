@@ -316,7 +316,7 @@ int pager_syslog(pid_t pid, void *addr, size_t len){
     }
     
     //inicialmente considera que o processo nao utiliza nenhum dos quadros solicitados
-    //quadroLimiteProcesso = 0;
+    quadroLimiteProcesso = 0;
 
     //busca primeiro frame vazio na tabela de paginas do processo
     for(i=0; i<tabelaProcesso->qtdPaginasBlocos; i++){
