@@ -240,7 +240,7 @@ void pager_fault(pid_t pid, void *vaddr){
                 novoQuadro = clockPtr;
 
                 // Se o frame está em uso.
-                if(quadros[clockPtr].disponivel == 1){
+                if(quadros[clockPtr].disponivel == false){
                     // Remove o frame e Salva o frame no disco se tiver permissão de escrita.
                     moveDiscoViaPid = quadros[clockPtr].pid;
                     moveDiscoViaPnum = quadros[clockPtr].numPagina;
@@ -267,7 +267,7 @@ void pager_fault(pid_t pid, void *vaddr){
                 // Coloca o novo processo no vetor de quadros.
                 quadros[clockPtr].pid = pid;
                 quadros[clockPtr].numPagina = numPagina;
-                quadros[clockPtr].disponivel = 1;
+                quadros[clockPtr].disponivel = false;
                 quadros[clockPtr].bitReferencia = 1;
                 quadros[clockPtr].none = 0;
 
@@ -316,7 +316,7 @@ int pager_syslog(pid_t pid, void *addr, size_t len){
     }
     
     //inicialmente considera que o processo nao utiliza nenhum dos quadros solicitados
-    quadroLimiteProcesso = 0;
+    //quadroLimiteProcesso = 0;
 
     //busca primeiro frame vazio na tabela de paginas do processo
     for(i=0; i<tabelaProcesso->qtdPaginasBlocos; i++){
