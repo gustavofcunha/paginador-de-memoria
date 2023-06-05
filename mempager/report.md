@@ -10,8 +10,8 @@
 
     Preencha as linhas abaixo com o nome e o email dos integrantes do grupo.  Substitua marcadores `XX` pela contribuição de cada membro do grupo no desenvolvimento do trabalho (os valores devem somar 100%).
 
-    * Nome1 gustavocunha@dcc.ufmg.br 50%
-    * Nome2 gabrimartinsjuarez@ufmg.br 50%
+    * Gustavo Cunha gustavocunha@dcc.ufmg.br 50%
+    * Gabriel Juarez gabrimartinsjuarez@ufmg.br 50%
 
 3. Referências bibliográficas
     FIGUEIREDO, Flavio. Slides da disciplina Sistemas Operacionais, 2023. The Open Group. Ucontext. The Single UNIX ® Specification, Version 2, 1997. Disponível em: https://pubs.opengroup.org/onlinepubs/7908799/xsh/ucontext.h.html. PetBBC. Signal, 2023. Disponível em: https://petbcc.ufscar.br/signal/.
